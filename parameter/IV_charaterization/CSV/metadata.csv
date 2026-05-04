@@ -1,0 +1,15 @@
+figure,page,crop_box_px,plot_bbox_px,x_range_voltage_V,y_range_current_mA,note
+fig3_iv_exp,page-04.png,"(1450, 1750, 2265, 2365)","(18, 0, 810, 610)","(-2, 2)","(-0.6, 0.4)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig6_iv_fit,page-05.png,"(1530, 1560, 2175, 2070)","(0, 0, 632, 470)","(-2, 1.5)","(-0.5, 0.3)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig9_iv_fit,page-07.png,"(350, 2160, 1110, 2865)","(30, 0, 750, 625)","(-2, 1.5)","(-0.5, 0.3)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig10_multi_sweep,page-07.png,"(1460, 800, 2285, 1390)","(0, 0, 815, 585)","(-2, 1.5)","(-0.6, 0.3)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig11a_device,page-08.png,"(230, 225, 705, 535)","(53, 0, 471, 305)","(-2, 1.5)","(-0.6, 0.4)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig11b_device,page-08.png,"(785, 225, 1260, 535)","(53, 0, 471, 305)","(-2, 1.5)","(-0.6, 0.4)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig11c_device,page-08.png,"(230, 620, 705, 930)","(53, 0, 471, 305)","(-2, 1.5)","(-0.6, 0.4)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig11d_device,page-08.png,"(785, 620, 1260, 930)","(53, 0, 471, 305)","(-2, 1.5)","(-0.8, 0.4)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig12a_exp_variability,page-08.png,"(1505, 520, 2245, 955)","(0, 0, 730, 434)","(-2, 1.5)","(-0.6, 0.4)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig12b_sim_variability,page-08.png,"(1505, 1135, 2245, 1570)","(0, 0, 730, 434)","(-2, 1.5)","(-0.6, 0.4)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig13_generalized_model,page-09.png,"(370, 930, 1130, 1510)","(10, 0, 755, 575)","(-2, 1.5)","(-0.6, 0.3)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig14_nonlinear_drift,page-09.png,"(370, 1770, 1130, 2360)","(10, 0, 755, 575)","(-2, 1.5)","(-0.6, 0.3)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig15_vteam,page-09.png,"(1460, 620, 2280, 1210)","(10, 0, 815, 585)","(-2, 1.5)","(-0.3, 0.6)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
+fig16_tio2x,page-10.png,"(340, 1180, 1190, 1740)","(2, 0, 843, 537)","(-2, 2)","(-0.2, 0.15)",Digitized approximate point cloud from rendered PDF figure; not original ordered sweep data.
