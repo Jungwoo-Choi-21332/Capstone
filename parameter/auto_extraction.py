@@ -164,7 +164,7 @@ def simulate_iv(V_waveform, p: MemristorParams, dt=1e-3, x0=0.5):
 
 
 if __name__ == "__main__":
-    params = extract_memristor_params("IV_charaterization/fig.10", voltage_col="V", current_col="I")
+    params = extract_memristor_params("IV_charaterization/CSV/fig9_iv_fit", voltage_col="V", current_col="I")
     print(params)
 
     df = pd.read_csv("iv_data.csv")
