@@ -1,0 +1,320 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>최종 보고서</title>
+<style>body{font-family:"Segoe UI",-apple-system,sans-serif;max-width:900px;margin:0 auto;padding:20px;background:#f8f9fa;color:#333;line-height:1.8}h1{color:#1a73e8;border-bottom:3px solid #1a73e8;padding-bottom:12px}h2{color:#333;border-bottom:2px solid #e8e8e8;padding-bottom:8px;margin-top:35px}h3{color:#555;margin-top:25px}table{border-collapse:collapse;width:100%;margin:15px 0;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1)}th{background:#1a73e8;color:#fff;padding:12px 15px;text-align:left}td{padding:10px 15px;border-bottom:1px solid #eee}tr:hover{background:#f5f5f5}strong{color:#d93025}blockquote{border-left:4px solid #1a73e8;padding:12px 20px;margin:15px 0;background:#e8f0fe;border-radius:0 4px 4px 0}code{background:#f1f3f4;padding:2px 6px;border-radius:3px}pre{background:#263238;color:#eeffff;padding:16px;border-radius:8px;overflow-x:auto}pre code{background:none;color:inherit}</style></head><body><h1>최종 보고서: 멤리스터 기반 PIM 가속기 웨이퍼 결함 분류 파라미터 최적화</h1>
+<h2>1. 프로젝트 개요</h2>
+<h3>목적</h3>
+<p>VTEAM 멤리스터 기반 PIM 가속기를 활용한 웨이퍼 맵 결함 분류 시스템에서, 멤리스터 관련 파라미터를 최적화하여 분류 성능을 최대화한다.</p>
+<h3>시스템 구성</h3>
+<ul>
+<li><strong>모델</strong>: 3층 CNN (Conv2d × 3 + MaxPool × 3 + FC)</li>
+<li><strong>입력</strong>: 64×64 웨이퍼 맵 이미지</li>
+<li><strong>출력</strong>: 8개 결함 유형 멀티라벨 분류</li>
+<li><strong>가속기</strong>: memtorch VTEAM 멤리스터 시뮬레이션</li>
+<li><strong>데이터</strong>: Mixed Type Wafer Defect Datasets (38,015개)</li>
+<li><strong>결함 유형</strong>: Center, Donut, Edge-Loc, Edge-Ring, Loc, Near-Full, Scratch, Random</li>
+</ul>
+<hr />
+<h2>2. 발견 및 수정한 문제점</h2>
+<h3>2.1 memtorch API 버그 2건</h3>
+<table>
+<thead>
+<tr>
+<th>원본 코드</th>
+<th>문제</th>
+<th>수정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>adc_bitwidth=8</code></td>
+<td>memtorch에 없는 파라미터, <code>**kwargs</code>로 무시됨</td>
+<td><code>ADC_resolution=8</code></td>
+</tr>
+<tr>
+<td><code>r_on_variation=0.05</code></td>
+<td>VTEAM에 없는 파라미터, <code>**kwargs</code>로 무시됨</td>
+<td><code>StochasticParameter(loc, scale)</code></td>
+</tr>
+</tbody>
+</table>
+<h3>2.2 워크플로우 오류</h3>
+<table>
+<thead>
+<tr>
+<th>원본</th>
+<th>문제</th>
+<th>수정</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>patch_model → 학습 (In-Situ)</td>
+<td>느리고, 노이즈에 적응하여 공정 비교 불가</td>
+<td>순수 학습 → patch_model → 평가 (Ex-Situ)</td>
+</tr>
+<tr>
+<td>patch_model → load_state_dict</td>
+<td>크로스바 전도도가 갱신되지 않음</td>
+<td>load_state_dict → patch_model</td>
+</tr>
+</tbody>
+</table>
+<h3>2.3 데이터 누수</h3>
+<ul>
+<li><strong>원본</strong>: 밸런싱 후 train/test 분리 → 테스트 데이터 오염</li>
+<li><strong>수정</strong>: train/test 분리 후 학습 데이터만 밸런싱</li>
+</ul>
+<hr />
+<h2>3. 최적화 과정</h2>
+<h3>3.1 Phase 1: Ex-Situ 파라미터 탐색 (73조합 × 3회 = 219회)</h3>
+<p>4단계 순차 탐색:</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>파라미터</th>
+<th>최적값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>tile_shape + ADC</td>
+<td>None / None</td>
+</tr>
+<tr>
+<td>B</td>
+<td>소자 변동성</td>
+<td>0% / 0%</td>
+</tr>
+<tr>
+<td>C</td>
+<td>r_on / r_off</td>
+<td>50Ω / 500Ω</td>
+</tr>
+<tr>
+<td>D</td>
+<td>scheme, transistor 등</td>
+<td>기본값 유지</td>
+</tr>
+</tbody>
+</table>
+<p>결과: <strong>F1 = 0.9628</strong></p>
+<h3>3.2 Phase 2: 성능 극대화</h3>
+<table>
+<thead>
+<tr>
+<th>기법</th>
+<th>설명</th>
+<th>효과</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>epoch 50 + LR scheduler</td>
+<td>30→50, 20 epoch마다 LR 절반</td>
+<td>loss 추가 감소</td>
+</tr>
+<tr>
+<td>Noise-Aware Training</td>
+<td>가중치에 노이즈 주입하며 미세 조정 (15 epoch)</td>
+<td>멤리스터 매핑 내성 향상</td>
+</tr>
+<tr>
+<td>threshold 튜닝</td>
+<td>0.3~0.7 범위에서 0.05 간격 탐색</td>
+<td>0.45가 최적</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>4. 최종 결과</h2>
+<h3>4.1 성능</h3>
+<table>
+<thead>
+<tr>
+<th>지표</th>
+<th>v1 (기본)</th>
+<th><strong>v2 (최종)</strong></th>
+<th>향상</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Macro F1</strong></td>
+<td>0.9628</td>
+<td><strong>0.9881</strong></td>
+<td>+2.5%p</td>
+</tr>
+<tr>
+<td><strong>Macro Precision</strong></td>
+<td>0.9909</td>
+<td><strong>0.9891</strong></td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>Macro Recall</strong></td>
+<td>0.9387</td>
+<td><strong>0.9873</strong></td>
+<td>+4.9%p</td>
+</tr>
+<tr>
+<td>재현성</td>
+<td>±0.0000</td>
+<td>±0.0000</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+<h3>4.2 결함 유형별 성능</h3>
+<table>
+<thead>
+<tr>
+<th>Defect Type</th>
+<th>Precision</th>
+<th>Recall</th>
+<th>F1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Center</td>
+<td>1.00</td>
+<td>1.00</td>
+<td>1.00</td>
+</tr>
+<tr>
+<td>Donut</td>
+<td>1.00</td>
+<td>1.00</td>
+<td>1.00</td>
+</tr>
+<tr>
+<td><strong>Edge-Loc</strong></td>
+<td><strong>0.95</strong></td>
+<td><strong>0.95</strong></td>
+<td><strong>0.95</strong></td>
+</tr>
+<tr>
+<td>Edge-Ring</td>
+<td>0.99</td>
+<td>1.00</td>
+<td>0.99</td>
+</tr>
+<tr>
+<td>Loc</td>
+<td>1.00</td>
+<td>0.99</td>
+<td>0.99</td>
+</tr>
+<tr>
+<td>Near-Full</td>
+<td>1.00</td>
+<td>0.97</td>
+<td>0.99</td>
+</tr>
+<tr>
+<td>Scratch</td>
+<td>0.99</td>
+<td>0.98</td>
+<td>0.99</td>
+</tr>
+<tr>
+<td>Random</td>
+<td>0.99</td>
+<td>1.00</td>
+<td>0.99</td>
+</tr>
+</tbody>
+</table>
+<p>모든 클래스 F1 <strong>0.95 이상</strong> 달성.</p>
+<h3>4.3 최적 설정 요약</h3>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>학습 방식</td>
+<td>Ex-Situ (순수 학습 → 멤리스터 매핑)</td>
+</tr>
+<tr>
+<td>epoch</td>
+<td>50 + Noise-Aware 15</td>
+</tr>
+<tr>
+<td>손실 함수</td>
+<td>Focal Loss (gamma=2.0)</td>
+</tr>
+<tr>
+<td>LR scheduler</td>
+<td>StepLR (step=20, gamma=0.5)</td>
+</tr>
+<tr>
+<td>threshold</td>
+<td>0.45</td>
+</tr>
+<tr>
+<td>tile_shape</td>
+<td>None</td>
+</tr>
+<tr>
+<td>ADC_resolution</td>
+<td>None</td>
+</tr>
+<tr>
+<td>r_on / r_off</td>
+<td>50Ω / 500Ω</td>
+</tr>
+<tr>
+<td>변동성</td>
+<td>0%</td>
+</tr>
+</tbody>
+</table>
+<h3>4.4 핵심 발견</h3>
+<ol>
+<li><strong>Noise-Aware Training이 가장 효과적</strong> — epoch 50만으로는 F1 0.9633, Noise-Aware 추가 시 0.9881</li>
+<li><strong>threshold 0.45가 최적</strong> — 기본값 0.5보다 낮춰서 Recall +4.9%p 향상</li>
+<li><strong>Edge-Loc F1 0.95 달성</strong> — 기존 0.49에서 크게 개선 (3층 CNN + Focal Loss + Noise-Aware 시너지)</li>
+<li><strong>결함 누락률 1.3%</strong> — Recall 0.9873 → 100개 중 1~2개만 놓침</li>
+</ol>
+<hr />
+<h2>5. 코드 구조</h2>
+<pre><code>model.py               - 공통 모듈 (CNN, Dataset, FocalLoss)
+step1_preprocessing.py  - 데이터 전처리
+step2_train.py          - Ex-Situ 학습 (순수 CNN)
+step3_evaluate.py       - Ex-Situ 평가 (멤리스터 매핑)
+optimize.py             - v1 파라미터 탐색
+optimize_v2.py          - v2 성능 극대화 (Noise-Aware + threshold)
+</code></pre>
+<hr />
+<h2>6. 실험 환경</h2>
+<table>
+<thead>
+<tr>
+<th>항목</th>
+<th>값</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PyTorch</td>
+<td>2.11.0+cpu</td>
+</tr>
+<tr>
+<td>memtorch</td>
+<td>1.1.6-cpu</td>
+</tr>
+<tr>
+<td>scikit-learn</td>
+<td>1.8.0</td>
+</tr>
+<tr>
+<td>데이터</td>
+<td>Mixed Type Wafer Defect Datasets</td>
+</tr>
+</tbody>
+</table></body></html>

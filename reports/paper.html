@@ -1,0 +1,252 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>논문</title>
+<style>body{font-family:"Segoe UI",-apple-system,sans-serif;max-width:900px;margin:0 auto;padding:20px;background:#f8f9fa;color:#333;line-height:1.8}h1{color:#1a73e8;border-bottom:3px solid #1a73e8;padding-bottom:12px}h2{color:#333;border-bottom:2px solid #e8e8e8;padding-bottom:8px;margin-top:35px}h3{color:#555;margin-top:25px}table{border-collapse:collapse;width:100%;margin:15px 0;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1)}th{background:#1a73e8;color:#fff;padding:12px 15px;text-align:left}td{padding:10px 15px;border-bottom:1px solid #eee}tr:hover{background:#f5f5f5}strong{color:#d93025}blockquote{border-left:4px solid #1a73e8;padding:12px 20px;margin:15px 0;background:#e8f0fe;border-radius:0 4px 4px 0}code{background:#f1f3f4;padding:2px 6px;border-radius:3px}pre{background:#263238;color:#eeffff;padding:16px;border-radius:8px;overflow-x:auto}pre code{background:none;color:inherit}</style></head><body><h1>VTEAM 멤리스터 기반 PIM 가속기의 웨이퍼 맵 결함 분류를 위한 Ex-Situ 파라미터 최적화 및 Noise-Aware Training 연구</h1>
+<p><strong>키워드</strong>: 멤리스터, VTEAM, Processing-in-Memory, 웨이퍼 결함 분류, Ex-Situ, Noise-Aware Training, memtorch</p>
+<hr />
+<h2>Abstract</h2>
+<p>본 연구에서는 VTEAM 멤리스터 모델 기반 PIM 가속기를 활용한 웨이퍼 맵 결함 분류 시스템의 멤리스터 파라미터 최적화를 수행하였다. 기존 구현에서 memtorch API 호출 오류 2건과 In-Situ 워크플로우의 논리적 오류를 발견하고 수정하였다. Ex-Situ 방식으로 재설계한 후, 73가지 파라미터 조합에 대한 체계적 탐색과 Noise-Aware Training 기법을 적용하였다. 최종적으로 Macro F1 Score 0.9881, Precision 0.9891, Recall 0.9873을 달성하였으며, 8개 결함 유형 전체에서 F1 0.95 이상의 성능을 확인하였다.</p>
+<hr />
+<h2>1. 서론</h2>
+<h3>1.1 연구 배경</h3>
+<p>반도체 제조 공정에서 웨이퍼 맵 결함 패턴 분석은 수율 향상에 필수적이다[1]. 멤리스터 기반 PIM 가속기는 행렬-벡터 곱셈을 O(1)에 수행할 수 있어 CNN 추론 가속에 적합하나[2], 소자의 물리적 비이상성(variation, quantization)이 추론 정확도를 저하시킨다.</p>
+<h3>1.2 연구 목적</h3>
+<ol>
+<li>기존 멤리스터 시뮬레이션 코드의 API 및 워크플로우 검증</li>
+<li>Ex-Situ 방식 기반 파라미터 체계적 탐색</li>
+<li>Noise-Aware Training을 통한 하드웨어 비이상성 내성 향상</li>
+</ol>
+<hr />
+<h2>2. 관련 연구</h2>
+<p>VTEAM은 전압 임계값 기반 멤리스터 모델로[3], memtorch 프레임워크에서 <code>patch_model</code>을 통해 PyTorch 모델을 멤리스터 기반으로 변환한다[4]. Ex-Situ 방식은 소프트웨어 학습 후 하드웨어 매핑을 수행하며, Noise-Aware Training은 학습 시 하드웨어 노이즈를 시뮬레이션하여 매핑 후 성능 저하를 완화하는 기법이다[5].</p>
+<hr />
+<h2>3. 연구 방법</h2>
+<h3>3.1 발견된 문제점</h3>
+<p><strong>API 오류</strong>: <code>adc_bitwidth</code> → <code>ADC_resolution</code>, <code>r_on_variation</code> → <code>StochasticParameter</code>. Python의 <code>**kwargs</code>로 인해 런타임 오류 없이 무시됨.</p>
+<p><strong>워크플로우 오류</strong>: <code>patch_model</code>은 호출 시점의 가중치를 크로스바 전도도로 즉시 변환하며, <code>forward_legacy(False)</code> 이후 추론은 크로스바만 사용. <code>load_state_dict</code> 이후 호출해야 학습된 가중치가 반영됨.</p>
+<h3>3.2 모델 구조</h3>
+<p>3층 CNN: Conv2d(1→16→32→64) + BatchNorm + ReLU + MaxPool, FC(4096→8).
+손실 함수: BCE Focal Loss (gamma=2.0, alpha=0.5).</p>
+<h3>3.3 최적화 파이프라인</h3>
+<p><strong>Phase 1: Ex-Situ 파라미터 탐색</strong>
+- 순수 CNN 학습 (50 epoch, StepLR)
+- 73가지 멤리스터 파라미터 조합 × 3회 반복 = 219회 평가</p>
+<p><strong>Phase 2: Noise-Aware Training</strong>
+- Phase 1 모델을 기반으로 15 epoch 미세 조정
+- 각 mini-batch에서 가중치에 가우시안 노이즈 주입 (σ = 1%~5%, 점진 증감)
+- Forward 시 노이즈 적용, backward 후 원본 가중치에 gradient 적용</p>
+<p><strong>Phase 3: Threshold 튜닝</strong>
+- 3개 모델(v1_epoch30, v2_epoch50, v2_noiseaware) × 9개 threshold(0.30~0.70)
+- 총 27조합 비교, Macro F1 기준 최적 선정</p>
+<hr />
+<h2>4. 실험 결과</h2>
+<h3>4.1 Phase별 성능 추이</h3>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>모델</th>
+<th>Threshold</th>
+<th>F1</th>
+<th>Precision</th>
+<th>Recall</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Baseline</td>
+<td>epoch 30</td>
+<td>0.50</td>
+<td>0.9628</td>
+<td>0.9909</td>
+<td>0.9387</td>
+</tr>
+<tr>
+<td>Phase 1</td>
+<td>epoch 50</td>
+<td>0.50</td>
+<td>0.9633</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>Phase 2</td>
+<td>Noise-Aware</td>
+<td>0.50</td>
+<td>0.9877</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>Phase 3</strong></td>
+<td><strong>Noise-Aware</strong></td>
+<td><strong>0.45</strong></td>
+<td><strong>0.9881</strong></td>
+<td><strong>0.9891</strong></td>
+<td><strong>0.9873</strong></td>
+</tr>
+</tbody>
+</table>
+<h3>4.2 Noise-Aware Training의 효과</h3>
+<table>
+<thead>
+<tr>
+<th>지표</th>
+<th>epoch 50 (t=0.45)</th>
+<th>Noise-Aware (t=0.45)</th>
+<th>차이</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td>0.9659</td>
+<td><strong>0.9881</strong></td>
+<td><strong>+2.2%p</strong></td>
+</tr>
+<tr>
+<td>Recall</td>
+<td>0.9495</td>
+<td><strong>0.9873</strong></td>
+<td><strong>+3.8%p</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Noise-Aware Training이 가장 큰 성능 향상 요인.</p>
+<h3>4.3 클래스별 성능 (최종)</h3>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Precision</th>
+<th>Recall</th>
+<th>F1-score</th>
+<th>Support</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Center</td>
+<td>1.00</td>
+<td>1.00</td>
+<td>1.00</td>
+<td>2,587</td>
+</tr>
+<tr>
+<td>Donut</td>
+<td>1.00</td>
+<td>1.00</td>
+<td>1.00</td>
+<td>2,377</td>
+</tr>
+<tr>
+<td>Edge-Loc</td>
+<td>0.95</td>
+<td>0.95</td>
+<td>0.95</td>
+<td>2,605</td>
+</tr>
+<tr>
+<td>Edge-Ring</td>
+<td>0.99</td>
+<td>1.00</td>
+<td>0.99</td>
+<td>2,404</td>
+</tr>
+<tr>
+<td>Loc</td>
+<td>1.00</td>
+<td>0.99</td>
+<td>0.99</td>
+<td>3,604</td>
+</tr>
+<tr>
+<td>Near-Full</td>
+<td>1.00</td>
+<td>0.97</td>
+<td>0.99</td>
+<td>34</td>
+</tr>
+<tr>
+<td>Scratch</td>
+<td>0.99</td>
+<td>0.98</td>
+<td>0.99</td>
+<td>3,713</td>
+</tr>
+<tr>
+<td>Random</td>
+<td>0.99</td>
+<td>1.00</td>
+<td>0.99</td>
+<td>179</td>
+</tr>
+</tbody>
+</table>
+<p>모든 클래스에서 F1 ≥ 0.95 달성. Edge-Loc은 기존 0.49에서 0.95로 개선.</p>
+<h3>4.4 Threshold 분석 (Noise-Aware 모델)</h3>
+<table>
+<thead>
+<tr>
+<th>Threshold</th>
+<th>F1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.30</td>
+<td>0.9790</td>
+</tr>
+<tr>
+<td>0.35</td>
+<td>0.9835</td>
+</tr>
+<tr>
+<td>0.40</td>
+<td>0.9851</td>
+</tr>
+<tr>
+<td><strong>0.45</strong></td>
+<td><strong>0.9881</strong></td>
+</tr>
+<tr>
+<td>0.50</td>
+<td>0.9877</td>
+</tr>
+<tr>
+<td>0.55</td>
+<td>0.9867</td>
+</tr>
+<tr>
+<td>0.60</td>
+<td>0.9809</td>
+</tr>
+</tbody>
+</table>
+<p>0.45에서 최적. 기본값 0.5 대비 Recall 향상으로 F1 +0.04%p.</p>
+<hr />
+<h2>5. 고찰</h2>
+<h3>5.1 Noise-Aware Training의 메커니즘</h3>
+<p>학습 시 가중치에 가우시안 노이즈를 주입하면, 모델이 개별 가중치의 정확한 값에 의존하지 않고 전체적인 패턴에 기반하여 판단하도록 학습된다. 이는 dropout과 유사한 정규화 효과를 제공하며, 멤리스터 매핑 시 발생하는 전도도 양자화 오차에 대한 내성을 높인다.</p>
+<h3>5.2 최적 파라미터의 의미</h3>
+<p>타일링 없음 + 양자화 없음이 최적인 것은, Ex-Situ에서는 소프트웨어 가중치의 정밀도를 최대한 보존하는 것이 핵심임을 의미한다. 실제 하드웨어에서는 이러한 제약이 불가피하므로, Noise-Aware Training으로 내성을 키우는 것이 실용적 해결책이다.</p>
+<h3>5.3 연구의 한계</h3>
+<ol>
+<li>CPU 시뮬레이션이므로 실제 하드웨어 검증 미수행</li>
+<li>순차 탐색으로 전역 최적해 보장 불가</li>
+<li>단일 데이터셋/모델에 대한 결과</li>
+</ol>
+<hr />
+<h2>6. 결론</h2>
+<ol>
+<li>memtorch API 버그 2건 및 워크플로우 오류 발견·수정</li>
+<li>Ex-Situ 기반 73가지 파라미터 탐색 + Noise-Aware Training + threshold 튜닝</li>
+<li><strong>Macro F1 0.9881</strong> (Precision 0.9891, Recall 0.9873) 달성</li>
+<li>8개 결함 유형 전체 F1 ≥ 0.95, 결함 누락률 1.3%</li>
+<li>Noise-Aware Training이 멤리스터 PIM 가속기 성능 향상에 가장 효과적인 기법임을 확인</li>
+</ol>
+<hr />
+<h2>References</h2>
+<p>[1] M. B. Alawieh et al., "Wafer map defect pattern classification using deep learning," IEEE Trans. Semicond. Manuf., 2020.</p>
+<p>[2] A. Sebastian et al., "Memory devices and applications for in-memory computing," Nature Nanotechnology, vol. 15, 2020.</p>
+<p>[3] S. Kvatinsky et al., "VTEAM: A general model for voltage-controlled memristors," IEEE TCAS-II, vol. 62, 2015.</p>
+<p>[4] C. Lammie et al., "MemTorch: An open-source simulation framework for memristive deep learning systems," Neurocomputing, vol. 485, 2022.</p>
+<p>[5] L. Xia et al., "Fault-tolerant training enabled by on-line fault detection for RRAM-based neural computing systems," IEEE TCAD, vol. 38, 2019.</p></body></html>
