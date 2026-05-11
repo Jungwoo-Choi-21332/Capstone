@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memristor 모델 파라미터 및 수식 정리</title>
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)'], ['$', '$']], displayMath: [['\\[', '\\]']] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #d1d5db;
+      --head: #111827;
+      --accent: #2563eb;
+      --soft: #eef4ff;
+      --green: #ecfdf5;
+      --red: #fef2f2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans KR", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+    header {
+      background: linear-gradient(135deg, #1f2937, #334155);
+      color: #fff;
+      border-radius: 22px;
+      padding: 34px 36px;
+      margin-bottom: 28px;
+      box-shadow: 0 14px 36px rgba(15, 23, 42, 0.18);
+    }
+    header h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      letter-spacing: -0.4px;
+    }
+    header p {
+      margin: 0;
+      color: #dbeafe;
+      font-size: 15px;
+    }
+    .note {
+      background: var(--soft);
+      border-left: 5px solid var(--accent);
+      padding: 16px 18px;
+      border-radius: 14px;
+      margin: 0 0 28px;
+      color: #1e3a8a;
+      font-size: 14px;
+    }
+    section {
+      background: var(--card);
+      border: 1px solid #e5e7eb;
+      border-radius: 20px;
+      padding: 24px;
+      margin: 22px 0;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+    section h2 {
+      margin: 0 0 8px;
+      color: var(--head);
+      font-size: 21px;
+      letter-spacing: -0.2px;
+    }
+    section h3 {
+      margin: 24px 0 10px;
+      color: #111827;
+      font-size: 17px;
+      border-left: 4px solid var(--accent);
+      padding-left: 10px;
+    }
+    .caption {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .table-box {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    th {
+      background: #f3f4f6;
+      color: #111827;
+      font-weight: 700;
+    }
+    td:first-child, th:first-child { font-weight: 650; }
+    .left { text-align: left; white-space: normal; }
+    .unit { color: var(--muted); font-weight: 500; }
+    .formula-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .formula-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 16px;
+      background: #fbfdff;
+    }
+    .formula-card h4 {
+      margin: 0 0 8px;
+      color: #111827;
+      font-size: 15px;
+    }
+    .formula {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px 0;
+      overflow-x: auto;
+    }
+    .desc {
+      color: #4b5563;
+      font-size: 13px;
+      margin: 8px 0 0;
+    }
+    .tag {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #e0ecff;
+      color: #1e40af;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .mini-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 15px;
+      padding: 14px 16px;
+      background: #fbfdff;
+    }
+    .mini-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #111827;
+    }
+    .mini-card span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    footer {
+      color: var(--muted);
+      text-align: center;
+      margin-top: 34px;
+      font-size: 13px;
+    }
+    @media print {
+      body { background: #fff; }
+      .wrap { padding: 0; max-width: none; }
+      header, section { box-shadow: none; break-inside: avoid; }
+      .table-box { overflow: visible; }
+      table { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Memristor 모델 파라미터 및 수식 정리</h1>
+    <p>첨부 논문 이미지의 표 + 논문에 포함된 VTEAM, V-VTEAM, Yakopcic 계열 수식 정리</p>
+  </header>
+
+  <div class="note">
+    이 문서는 논문에 등장하는 memristor model의 핵심 파라미터와 수식을 한눈에 볼 수 있도록 정리한 HTML 파일입니다.
+    수식은 MathJax를 사용하므로 인터넷 연결이 있으면 수식이 깔끔하게 렌더링됩니다.
+  </div>
+
+  <section>
+    <h2>1. VTEAM / V-VTEAM 핵심 개념</h2>
+    <div class="summary-grid">
+      <div class="mini-card">
+        <strong>상태 변수</strong>
+        <span>\(x\) 또는 \(w\)는 memristor 내부 상태를 의미하며, 값의 위치에 따라 \(R_{ON}\), \(R_{OFF}\) 상태가 결정됩니다.</span>
+      </div>
+      <div class="mini-card">
+        <strong>Threshold voltage</strong>
+        <span>\(v_{on}\), \(v_{off}\), \(V_{th}\)는 상태 변화가 시작되는 전압 조건입니다.</span>
+      </div>
+      <div class="mini-card">
+        <strong>Window function</strong>
+        <span>\(f_{on}\), \(f_{off}\)는 상태 변수가 물리적 경계 밖으로 나가지 않도록 제한합니다.</span>
+      </div>
+      <div class="mini-card">
+        <strong>Volatile decay</strong>
+        <span>V-VTEAM은 전압이 hold voltage보다 낮아지면 상태 변수가 시간에 따라 감소하는 decay 항을 포함합니다.</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. 논문에 포함된 Memristor 수식 정리</h2>
+    <p class="caption">각 모델별 핵심 수식을 정리했습니다.</p>
+
+    <h3>A. V-VTEAM: Volatile Memristor Model</h3>
+    <div class="formula-grid">
+      <div class="formula-card">
+        <span class="tag">State growth</span>
+        <h4>전압이 \(V_{th}\)보다 클 때 내부 상태 변수 증가</h4>
+        <div class="formula">\[
+          \frac{dx}{dt}
+          =
+          k \left( \frac{v(t)}{v_{th}} - 1 \right)^{\alpha}
+        \]</div>
+        <p class="desc">
+          \(k\), \(\alpha\)는 fitting parameter이고, \(v_{th}\)는 threshold voltage입니다.
+          전압이 임계값을 넘으면 \(x\)가 증가하여 HRS에서 LRS 방향으로 이동합니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">State decay</span>
+        <h4>전압이 \(V_h\)보다 낮을 때 상태 변수 감소</h4>
+        <div class="formula">\[
+          \frac{dx}{dt}
+          =
+          -\frac{x \beta}{\tau}
+          \left( \frac{t}{\tau} \right)^{\beta - 1}
+        \]</div>
+        <p class="desc">
+          \(\tau\)와 \(\beta\)는 retention/decay 특성을 조절합니다.
+          \(\tau\)가 커질수록 상태가 더 천천히 감소합니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">Current relation</span>
+        <h4>상태 변수에 따른 저항 기반 전류식</h4>
+        <div class="formula">\[
+          i(t) =
+          \frac{v(t)}
+          {R_{on}x(t) + R_{off}\left(1-x(t)\right)}
+        \]</div>
+        <p class="desc">
+          \(x=1\)이면 \(R_{on}\)에 가까운 LRS, \(x=0\)이면 \(R_{off}\)에 가까운 HRS로 해석할 수 있습니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">Relative RMSE</span>
+        <h4>Generic model과 physics-based model의 fitting error</h4>
+        <div class="formula">\[
+          e_i =
+          \sqrt{
+          \frac{1}{N}
+          \left(
+          \frac{\sum_{i=1}^{N}(I_{G,i}-I_{P,i})^2}
+          {\overline{I_P}^{\,2}}
+          \right)}
+        \]</div>
+        <p class="desc">
+          \(I_G\)는 generic model current, \(I_P\)는 physics-based model current입니다.
+        </p>
+      </div>
+    </div>
+
+    <h3>B. VTEAM: Voltage Threshold Adaptive Memristor</h3>
+    <div class="formula-grid">
+      <div class="formula-card">
+        <span class="tag">General memristive system</span>
+        <h4>전압 제어 memristive device 기본식</h4>
+        <div class="formula">\[
+          \frac{dw}{dt}=f(w,v)
+        \]</div>
+        <div class="formula">\[
+          i(t)=G(w,v)\cdot v(t)
+        \]</div>
+        <p class="desc">
+          \(w\)는 내부 상태 변수, \(G(w,v)\)는 상태와 전압에 의해 결정되는 conductance입니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">VTEAM state equation</span>
+        <h4>Threshold 기반 상태 변수 변화</h4>
+        <div class="formula">\[
+        \frac{dw(t)}{dt} =
+        \begin{cases}
+        k_{off}
+        \left(\frac{v(t)}{v_{off}}-1\right)^{\alpha_{off}}
+        f_{off}(w),
+        & 0 < v_{off} < v(t) \\
+        0,
+        & v_{on} < v(t) < v_{off} \\
+        k_{on}
+        \left(\frac{v(t)}{v_{on}}-1\right)^{\alpha_{on}}
+        f_{on}(w),
+        & v(t) < v_{on} < 0
+        \end{cases}
+        \]</div>
+        <p class="desc">
+          \(v(t)\)가 \(v_{on}\)과 \(v_{off}\) 사이에 있으면 상태 변화가 없습니다.
+          \(k_{off}>0\), \(k_{on}<0\)로 두는 경우가 일반적입니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">Linear I-V</span>
+        <h4>상태 변수와 저항을 선형으로 연결한 전류식</h4>
+        <div class="formula">\[
+          i(t)=
+          \left(
+          R_{ON}
+          +
+          \frac{R_{OFF}-R_{ON}}{w_{off}-w_{on}}
+          (w-w_{on})
+          \right)^{-1}
+          v(t)
+        \]</div>
+        <p class="desc">
+          \(w=w_{on}\)이면 \(R_{ON}\), \(w=w_{off}\)이면 \(R_{OFF}\)가 됩니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">Exponential I-V</span>
+        <h4>상태 변수와 전류를 지수형으로 연결한 전류식</h4>
+        <div class="formula">\[
+          i(t)=
+          \frac{
+          e^{-\frac{\lambda}{w_{off}-w_{on}}(w-w_{on})}
+          }{R_{ON}}
+          v(t)
+        \]</div>
+        <div class="formula">\[
+          e^{\lambda}=\frac{R_{OFF}}{R_{ON}}
+        \]</div>
+        <p class="desc">
+          \(\lambda\)는 fitting parameter이며, \(R_{OFF}/R_{ON}\) 비율을 반영합니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">Modified VTEAM</span>
+        <h4>전기형성 온도 계수 \(ET\)를 포함한 수정식</h4>
+        <div class="formula">\[
+          i(t)=
+          \frac{
+          e^{-\frac{\lambda}{w_{off}-w_{on}}(w-w_{on})}
+          }{R_{ON}}
+          v(t)\cdot ET
+        \]</div>
+        <div class="formula">\[
+          ET=e^{\left(\frac{T_f-T_r}{T_r}\right)}
+        \]</div>
+        <p class="desc">
+          \(T_f\)는 forming ambient temperature, \(T_r\)는 reference temperature입니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">Fitting error</span>
+        <h4>VTEAM fitting에서 사용하는 relative RMS error</h4>
+        <div class="formula">\[
+          e_{i,v}=
+          \sqrt{
+          \frac{1}{N}
+          \left(
+          \frac{\sum_{i=1}^{N}(V_{VTEAM,i}-V_{ref,i})^2}{\overline{V}_{ref}^{\,2}}
+          +
+          \frac{\sum_{i=1}^{N}(I_{VTEAM,i}-I_{ref,i})^2}{\overline{I}_{ref}^{\,2}}
+          \right)}
+        \]</div>
+        <p class="desc">
+          모델의 \(I\)-\(V\) curve가 reference curve와 얼마나 가까운지 평가할 때 사용합니다.
+        </p>
+      </div>
+    </div>
+
+    <h3>C. Yakopcic / Generalized Memristor Model</h3>
+    <div class="formula-grid">
+      <div class="formula-card">
+        <span class="tag">I-V blending</span>
+        <h4>상태 변수 기반 전류 혼합식</h4>
+        <div class="formula">\[
+          i(t)=
+          h_1(V(t))x(t)
+          +
+          h_2(V(t))(1-x(t))
+        \]</div>
+        <p class="desc">
+          \(h_1\), \(h_2\)는 각각 다른 전도 메커니즘을 나타낼 수 있습니다.
+          예: Ohmic, MIM, Schottky, \(\sinh\)형 전도.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">Threshold function</span>
+        <h4>전압 임계값을 반영한 \(g(V(t))\)</h4>
+        <div class="formula">\[
+        g(V(t))=
+        \begin{cases}
+        A_p\left(e^{V(t)}-e^{V_p}\right),
+        & V(t)>V_p \\
+        -A_n\left(e^{-V(t)}-e^{V_n}\right),
+        & V(t)<-V_n \\
+        0,
+        & -V_n\le V(t)\le V_p
+        \end{cases}
+        \]</div>
+        <p class="desc">
+          \(V_p\), \(V_n\)은 양/음 방향 threshold이고, \(A_p\), \(A_n\)은 threshold 이후 상태 변화 속도를 조절합니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">State motion</span>
+        <h4>상태 변수 변화 방정식</h4>
+        <div class="formula">\[
+          \frac{dx}{dt}
+          =
+          \eta \, g(V(t))\, f(x(t))
+        \]</div>
+        <p class="desc">
+          \(\eta\)는 전압 극성과 상태 변수 변화 방향의 관계를 나타냅니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">Window function</span>
+        <h4>양/음 방향 상태 변수 제한 함수</h4>
+        <div class="formula">\[
+        f_p(x)=
+        \begin{cases}
+        e^{-w_p(x,x_p)}, & x<x_p \\
+        1, & x\ge x_p
+        \end{cases}
+        \]</div>
+        <div class="formula">\[
+        f_n(x)=
+        \begin{cases}
+        1, & x\le 1-x_n \\
+        e^{-w_n(x,x_n)}, & x>1-x_n
+        \end{cases}
+        \]</div>
+        <p class="desc">
+          경계 근처에서 상태 변화 속도를 줄여 실제 소자의 비선형 switching behavior를 표현합니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">Window details</span>
+        <h4>\(w_p\), \(w_n\) 함수</h4>
+        <div class="formula">\[
+          w_p(x,x_p)=\frac{x_p-x}{1-x_p}+1
+        \]</div>
+        <div class="formula">\[
+          w_n(x,x_n)=\frac{x}{1-x_n}
+        \]</div>
+        <p class="desc">
+          \(w_p\)는 \(x=1\) 방향 경계, \(w_n\)은 \(x=0\) 방향 경계를 제한하는 역할을 합니다.
+        </p>
+      </div>
+    </div>
+
+    <h3>D. Memristor Crossbar Array 수식</h3>
+    <div class="formula-grid">
+      <div class="formula-card">
+        <span class="tag">Vector-matrix multiplication</span>
+        <h4>Crossbar 출력 전류</h4>
+        <div class="formula">\[
+          I_{out,j}=\sum_i W_{i,j}V_{in,i}
+        \]</div>
+        <p class="desc">
+          \(W_{i,j}\)는 \((i,j)\) 위치 memristor의 conductance이고, \(V_{in,i}\)는 bit line 입력 전압입니다.
+          Crossbar는 conductance에 저장된 weight와 입력 전압의 곱셈/누산을 아날로그적으로 수행합니다.
+        </p>
+      </div>
+
+      <div class="formula-card">
+        <span class="tag">Threshold current condition</span>
+        <h4>전류 threshold 기반 write 조건</h4>
+        <div class="formula">\[
+          I(t)=\left|\frac{V_{rst}}{R(t)}\right|>|I_{th}|
+        \]</div>
+        <p class="desc">
+          VTEAM 논문에서는 threshold current 방식보다 threshold voltage 방식이 crossbar write 동작에서 안정적일 수 있음을 설명합니다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. VTEAM Model Fitting Characteristics</h2>
+    <p class="caption">Pt-Hf-Ti memristor, Ferroelectric memristor, Metallic nanowire memristor 비교</p>
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Pt-Hf-Ti memristor</th>
+            <th>Ferroelectric memristor</th>
+            <th>Metallic nanowire memristor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>&alpha;<sub>off</sub></td><td>1</td><td>5</td><td>3</td></tr>
+          <tr><td>&alpha;<sub>on</sub></td><td>3</td><td>5</td><td>9</td></tr>
+          <tr><td>v<sub>off</sub> <span class="unit">[V]</span></td><td>0.5</td><td>1.4</td><td>0.145</td></tr>
+          <tr><td>v<sub>on</sub> <span class="unit">[V]</span></td><td>-0.53</td><td>-5.7</td><td>-0.09</td></tr>
+          <tr><td>R<sub>OFF</sub> <span class="unit">[&Omega;]</span></td><td>2.5&times;10<sup>3</sup></td><td>5&times;10<sup>7</sup></td><td>34</td></tr>
+          <tr><td>R<sub>ON</sub> <span class="unit">[&Omega;]</span></td><td>100</td><td>1.5&times;10<sup>5</sup></td><td>17.3</td></tr>
+          <tr><td>k<sub>off</sub> <span class="unit">[m/s]</span></td><td>4.03&times;10<sup>-8</sup></td><td>10<sup>-4</sup></td><td>5&times;10<sup>-4</sup></td></tr>
+          <tr><td>k<sub>on</sub> <span class="unit">[m/s]</span></td><td>-80</td><td>-30</td><td>-1.32&times;10<sup>-6</sup></td></tr>
+          <tr><td>w<sub>off</sub> <span class="unit">[nm]</span></td><td>10</td><td>10</td><td>10</td></tr>
+          <tr><td>w<sub>on</sub> <span class="unit">[nm]</span></td><td>0</td><td>0</td><td>0</td></tr>
+          <tr><td>w<sub>init</sub> <span class="unit">[nm]</span></td><td>10</td><td>0</td><td>0</td></tr>
+          <tr><td>i-v</td><td>linear</td><td>linear</td><td>exponent</td></tr>
+          <tr><td>e<sub>v,i</sub> minimal value achieved</td><td>1.12%</td><td>1.48%</td><td>0.41%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>4. Fitting Parameters of V-VTEAM Model</h2>
+    <p class="caption">Testing value와 fitting value 비교</p>
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Testing Value</th><th>Fitting Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>x<sub>on</sub></td><td>1</td><td>-</td></tr>
+          <tr><td>x<sub>off</sub></td><td>0</td><td>-</td></tr>
+          <tr><td>V<sub>th</sub> <span class="unit">[V]</span></td><td>1.8</td><td>1.744</td></tr>
+          <tr><td>V<sub>h</sub> <span class="unit">[V]</span></td><td>1.4</td><td>1.5726</td></tr>
+          <tr><td>R<sub>on</sub> <span class="unit">[&Omega;]</span></td><td>30k</td><td>-</td></tr>
+          <tr><td>R<sub>off</sub> <span class="unit">[&Omega;]</span></td><td>15G</td><td>-</td></tr>
+          <tr><td>k <span class="unit">[m/s]</span></td><td>150</td><td>650</td></tr>
+          <tr><td>&alpha;</td><td>0.45</td><td>0.09999</td></tr>
+          <tr><td>&tau; <span class="unit">[s]</span></td><td>10m</td><td>1.0444</td></tr>
+          <tr><td>&beta;</td><td>5</td><td>2.14262</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>5. Target Memristor Device Fitting Parameters</h2>
+    <p class="caption">3개의 cyclic sweep에 대한 fitting parameter 및 평균값</p>
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Sweep 1</th><th>Sweep 2</th><th>Sweep 3</th><th>Average</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>V<sub>th,p</sub></td><td>0.910</td><td>0.980</td><td>0.770</td><td>0.887</td></tr>
+          <tr><td>V<sub>th,n</sub></td><td>-1.425</td><td>-1.245</td><td>-1.155</td><td>-1.275</td></tr>
+          <tr><td>g<sub>min</sub></td><td>7.490&times;10<sup>-6</sup></td><td>1.035&times;10<sup>-5</sup></td><td>1.134&times;10<sup>-5</sup></td><td>9.726&times;10<sup>-6</sup></td></tr>
+          <tr><td>g<sub>max</sub></td><td>2.021&times;10<sup>-4</sup></td><td>2.040&times;10<sup>-4</sup></td><td>2.164&times;10<sup>-4</sup></td><td>2.075&times;10<sup>-4</sup></td></tr>
+          <tr><td>A<sub>p</sub></td><td>72.475</td><td>120.580</td><td>242.643</td><td>145.233</td></tr>
+          <tr><td>A<sub>n</sub></td><td>21.016</td><td>10.302</td><td>111.628</td><td>47.649</td></tr>
+          <tr><td>x<sub>p</sub></td><td>0.899</td><td>0.856</td><td>0.590</td><td>0.782</td></tr>
+          <tr><td>x<sub>n</sub></td><td>0.676</td><td>0.744</td><td>0.760</td><td>0.726</td></tr>
+          <tr><td>b</td><td>2.62</td><td>2.502</td><td>2.470</td><td>2.531</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>6. Memristor Parameters of VTEAM Model</h2>
+    <p class="caption">GRU 논문에서 사용한 VTEAM model 파라미터 값</p>
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Value</th><th>Parameter</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>k<sub>on</sub></td><td>-1</td><td>k<sub>off</sub></td><td>1</td></tr>
+          <tr><td>&alpha;<sub>on</sub></td><td>0.1</td><td>&alpha;<sub>off</sub></td><td>0.1</td></tr>
+          <tr><td>a<sub>on</sub></td><td>1.8e-9</td><td>a<sub>off</sub></td><td>1.2e-9</td></tr>
+          <tr><td>R<sub>on</sub></td><td>100&Omega;</td><td>R<sub>off</sub></td><td>16000&Omega;</td></tr>
+          <tr><td>x<sub>on</sub></td><td>0</td><td>x<sub>off</sub></td><td>3e-9</td></tr>
+          <tr><td>w<sub>c</sub></td><td>10<sup>7</sup>e-12</td><td>x<sub>0</sub></td><td>0</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>7. Extracted Data from Experiment and Simulation</h2>
+    <p class="caption">Non-Linear ion, Yakopcic, VTEAM, VTEAM Modified, Experimental 결과 비교</p>
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Vset <span class="unit">[V]</span></th>
+            <th>Ron <span class="unit">[K&Omega;]</span></th>
+            <th>Tset <span class="unit">[ns]</span></th>
+            <th>Vreset <span class="unit">[V]</span></th>
+            <th>Roff <span class="unit">[K&Omega;]</span></th>
+            <th>Treset <span class="unit">[ns]</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Non-Linear ion</td><td>1.62</td><td>4.63</td><td>5.7</td><td>-1.45</td><td>125</td><td>6.2</td></tr>
+          <tr><td>Yakopcic</td><td>1.4</td><td>9.3</td><td>6.4</td><td>-1.0</td><td>624</td><td>7.7</td></tr>
+          <tr><td>VTEAM</td><td>1.56</td><td>7.5</td><td>8.7</td><td>-0.7</td><td>501</td><td>9.3</td></tr>
+          <tr><td>VTEAM Modified</td><td>1.72</td><td>6.8</td><td>9.3</td><td>-0.84</td><td>619</td><td>10.6</td></tr>
+          <tr><td>Experimental</td><td>1.7</td><td>6</td><td>10</td><td>-0.8</td><td>627</td><td>12</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>8. MemTorch 파라미터로 볼 때 중요한 부분</h2>
+    <div class="summary-grid">
+      <div class="mini-card">
+        <strong>\(r_{on}\), \(r_{off}\)</strong>
+        <span>논문 표의 \(R_{ON}\), \(R_{OFF}\) 값을 MemTorch의 <code>r_on</code>, <code>r_off</code>에 대응시킬 수 있습니다.</span>
+      </div>
+      <div class="mini-card">
+        <strong>\(v_{on}\), \(v_{off}\)</strong>
+        <span>상태 변화가 시작되는 음/양 방향 threshold voltage입니다.</span>
+      </div>
+      <div class="mini-card">
+        <strong>\(k_{on}\), \(k_{off}\)</strong>
+        <span>상태 변수 변화 속도를 결정합니다. 절댓값이 클수록 switching이 빠르게 나타납니다.</span>
+      </div>
+      <div class="mini-card">
+        <strong>\(\alpha_{on}\), \(\alpha_{off}\)</strong>
+        <span>threshold 이후 상태 변화의 비선형성을 결정합니다.</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Generated HTML summary from provided memristor papers and table images.
+  </footer>
+</div>
+</body>
+</html>
